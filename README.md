@@ -1,1 +1,1 @@
-# statistics-for-data-science
+# Final exam Data Managment for big data
