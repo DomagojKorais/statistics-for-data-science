@@ -1,0 +1,1233 @@
+---
+title: "The Italian Spring"
+subtitle: " The Italian institutional crisis, a Twitter perspective "
+author: "Domagoj Korais"
+date: " Spring 2018"
+output:
+  html_document:
+    toc: yes
+  ioslides_presentation:
+    highlight: tango
+  include: null
+  beamer_presentation:
+    highlight: tango
+  pdf_document:
+    highlight: tango
+    keep_tex: yes
+    toc: yes
+  slide_level: 2
+  slidy_presentation:
+    fig.height: 6
+    fig.width: 8
+    highlight: tango
+header-includes:
+- \usepackage{color}
+- \definecolor{Purple}{HTML}{911146}
+- \definecolor{Orange}{HTML}{CF4A30}
+- \setbeamercolor{alerted text}{fg=Orange}
+- \setbeamercolor{frametitle}{bg=Purple}
+institute: University of Udine & University of Trieste
+graphics: yes
+fontsize: 10pt
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = FALSE )
+knitr::opts_chunk$set(cache = TRUE )
+knitr::opts_chunk$set(eval = TRUE )
+knitr::opts_chunk$set(warning = FALSE )
+knitr::opts_chunk$set(message = FALSE )
+```
+
+
+##Motivation and overview of the project.
+The rise of populism in western democratic countries is one of the characteristic trademarks of our time.
+According to various researches [1] social networks played a pivotal role in the spreading of information, and misinformation, during all the major events of the last couple of years, from Trump's victory in the USA elections to the Brexit referendum in UK.
+May 27th was a very peculiar day for Italian institutions:  President Sergio Mattarella vetoed Paolo Savona as finance minister, triggering a institutional crisis, that culminated in the proposal of impeachment made by Luigi Di Maio, leader of the M5S party.
+In the present project I collect and analyze a stream of tweets linked with this crisis, with the aim of studying the opinion of Italian Twitter users regarding those events.
+The project is divided in three main parts: data collection & cleaning, Tweets analysis and users analysis.
+A certain number of interactive applications has been developed with the aim to develop a interactive tweet analysis framework.
+I believe that text mining places itself at the boundary between automatic and human-made data extraction, so the project is oriented towards the presentation of the data in such a way to help comprehension to a person with some knowledge about the topic discussed.
+
+
+
+
+# Data collection and cleaning
+
+##Data collection
+Data collection has been performed in the wake of the crisis, since free twitter API's permits to recover tweets only in a time span of 6-9 days before the request time. 
+Data has been gathered using the "Rtweet" package searching for the following hashtags and keywords: #iostoconmattarella, #dimaio, #salvini, #ilmiovotoconta, #governolegam5s, #impeachment, #impeachmentmattarella, #iostoconmattarella, #mattarella, #mattarelladimettiti, #oettinger, #spread, "mattarella","spread".
+The total number of gathered tweets is **1012909**, for the period from 23-05-2018 to 03-06-2018.
+The total number of different users whose metadata has been collected is **103037**.  
+The total number of associated metadata is 40 for each tweet, and 19 for each user. 
+
+ 
+ 
+##Data cleaning 
+
+Data cleaning has been driven bearing in mind the principles of tidy data, both for textual and metadata parts.
+Since many tweets has multiple hashtags, the first step is to get rid of duplicates. Afther that operation the number of single tweets dropped from **1012909** to **764625**, of which **519467 ** retweets and **245158** tweets.
+The second step is to retain only italian tweets, since I'm interested in italian's opinions. The filtering is trivial since with every tweet come an associated metadata indicating the language. This operation diminished the number of tweets to **695648** of which **485887** retweets and **209761** tweets.
+Text cleaning has been performed using regular expressions to clean up both the texts and the hashtags from undesired values such us urls, quotation marks and other tweets data feautures.
+One of the major problems solved in the cleaning phase is that, since Twitter changed the maximum size of tweets from 140 to 280, the retweets text was very ofthen truncated, and some of the hashtags were missing. 
+The problem has been solved searching the text of the original retweeted tweet, and extracting the informations from there.
+The stop words were downloaded from a github project [2]
+
+
+
+
+
+
+
+
+#Tweets analysis
+##Interactive visualization: Tweets localization
+In this interactive visualization is possible to take a first look on what people said around the world.
+Only the subset of geotagged tweets is shown.
+```{r,warning=FALSE}
+#qualitative interactive visualization full dataset (needs 7 GB of RAM)
+library(rtweet)
+library(leaflet)
+library(tidyverse)
+dataset_untidy=readRDS("/home/doma/0dssc/data_managment/esame_finale/data/FINAL_DATA_DEFINITIVO/tutti_i_tweet_no_duplicati.RDS")
+dataset_untidy=dataset_untidy%>%filter(lang=="it")
+dataset_untidy <- lat_lng(dataset_untidy)
+leaflet(dataset_untidy) %>%
+  addTiles() %>%  # Add default OpenStreetMap map tiles
+  addMarkers(~lng,~lat, popup=~text ,clusterOptions = markerClusterOptions())
+rm(dataset_untidy)
+```
+
+
+
+
+
+
+  [//]: # ##Interactive Shiny visualizations #Posting story
+```{r "shiny magics",cache=FALSE,eval=FALSE}
+library(scales)
+library(shiny)
+library(rtweet)
+library(tidyverse)
+TIMEFRAME=data.frame(begin=as.POSIXct("2018-05-27 18:32:13", tz = "GMT"),end=as.POSIXct("2018-05-27 18:57:37", tz = "GMT"))
+dataset=readRDS("~/0dssc/data_managment/esame_finale/data/tweets/iostoconmattarella_retweet" )
+
+lower_bound=as.POSIXct("2018-05-27 17:32:13",tz="UTC")
+upper_bound=as.POSIXct("2018-05-27 23:32:13",tz="UTC")
+
+ui <- fluidPage(sliderInput(inputId="data_lower",step = 10, label="start", min=lower_bound,
+                            max=upper_bound,
+                            value=lower_bound, timeFormat =  "%F %T",
+                            timezone = "+0000", dragRange = TRUE),
+                plotOutput("plot1"),
+                sliderInput(inputId="data_upper",step = 10, label="finish", min=lower_bound,
+                            max=upper_bound,
+                            value=upper_bound, timeFormat =  "%F %T",
+                            timezone = "+0000", dragRange = TRUE)
+)
+
+server <- function(input,output){
+  output$plot1 <- renderPlot({
+    dataset%>%
+      group_by(is_retweet)%>%
+      filter(created_at>=lower_bound & created_at<=upper_bound) %>%
+      ts_plot( "5 minutes")+
+      ggplot2::theme_minimal() +
+      ggplot2::theme(plot.title = ggplot2::element_text(face = "bold")) +
+      ggplot2::labs(
+        x = NULL, y = NULL,
+        title = "Frequency of #iostoconmattarella Twitter statuses for period 25/05-02/06",
+        subtitle = "Twitter status (tweet) counts aggregated using one-hour intervals",
+        caption = "\nSource: Data collected from Twitter's REST API via rtweet"
+      ) +
+      scale_x_datetime(limits=c(as.POSIXct(input$data_lower), as.POSIXct(input$data_upper)), labels = waiver())+ylab("")+
+     # ggtitle("My Plot")+xlab("")+
+      geom_rect(data = TIMEFRAME,
+                aes(xmin = as.POSIXct(begin,tz = "GMT"), xmax =as.POSIXct( end,tz = "GMT"), ymin = -Inf, ymax = +Inf),
+                inherit.aes = FALSE, fill = "red", alpha = 0.1)
+  })
+}
+
+shinyApp(ui=ui, server=server)
+```
+
+
+
+
+
+
+
+##Posting frequency
+Let's explore the posting frequency, for tweets and retweets.
+In those graphs I plotted the posting frequency on different timescales, the red area shows the period of time in which official declarations were released from the autorities, but the first leakes come out at around 18:00 of 27th of May.
+There are two main characteristics: the day-night modulation, two sharp spikes corrisponding on May 27 and June 01, corrisponding respectively to the collapse of the forming government and to it's final formation. 
+Additionally it's clear that the majority of tweets are retweets, except in the first spike.
+
+
+\thinspace
+\thinspace
+
+```{r "Posting frequency"}
+library(rtweet)
+library(leaflet)
+library(tidyverse)
+
+dataset_untidy = readRDS( "/home/doma/0dssc/data_managment/esame_finale/data/FINAL_DATA_DEFINITIVO/tutti_i_tweet_no_duplicati.RDS" )
+#only italian language tweets
+dataset_untidy = dataset_untidy %>% filter ( lang == "it" )
+
+#start and finish of declarations 27th of May from Mattarella and co.
+TIMEFRAME=data.frame(begin=as.POSIXct("2018-05-27 17:15:21", tz = "GMT"),end=as.POSIXct("2018-05-27 18:57:37", tz = "GMT"))
+
+ dataset_untidy %>%
+  group_by ( is_retweet ) %>%
+  filter ( created_at >= "2018-05-23" & created_at <= "2018-06-03" ) %>%
+  ts_plot ( "1 hour" ) +
+  ggplot2::theme_minimal () +
+  ggplot2::theme ( plot.title = ggplot2::element_text ( face = "bold" ) ) +
+  ggplot2::labs(
+    x = NULL , y = NULL ,
+    title = "Frequency  Tweets statuses for period 23/05/2018-03/06/2018" ,
+    subtitle = "Twitter status (tweet) counts aggregated using one-hour intervals" ,
+    caption = "\nSource: Data collected from Twitter's REST API via rtweet" ,
+    color = "Retweet?" )  +
+    geom_rect ( data = TIMEFRAME,
+                aes(xmin = as.POSIXct(begin,tz = "GMT"), xmax =as.POSIXct( end,tz = "GMT"), ymin = -Inf, ymax = +Inf),
+                inherit.aes = FALSE, fill = "red", alpha = 0.3)
+
+
+
+    
+
+
+
+
+
+```
+
+\thinspace
+\thinspace
+
+Let's take a closer look on the first spike:
+
+\thinspace
+\thinspace
+
+```{r "Posting frequency-limitated timespan"}
+library(rtweet)
+library(leaflet)
+library(tidyverse)
+
+dataset_untidy = readRDS( "/home/doma/0dssc/data_managment/esame_finale/data/FINAL_DATA_DEFINITIVO/tutti_i_tweet_no_duplicati.RDS" )
+#only italian language tweets
+dataset_untidy = dataset_untidy %>% filter ( lang == "it" )
+
+#start:Mattarella riceve Conte al Quirinale, end: Dichiarazione alla stampa di Mattarella, fonte: account Quirinale  twitter
+TIMEFRAME=data.frame(begin=as.POSIXct("2018-05-27 17:15:21", tz = "GMT"),end=as.POSIXct("2018-05-27 18:57:37", tz = "GMT"))
+#limit timespan
+ dataset_untidy %>%
+ group_by ( is_retweet ) %>%
+ filter ( created_at >= as.POSIXct("2018-05-27 13:22:13",tz = "GMT") & created_at <= as.POSIXct("2018-05-27 23:32:13",tz = "GMT") ) %>%
+  #filter ( created_at >="2018-05-27" & created_at <="2018-05-27") %>%
+  ts_plot ( "1 minute" ) +
+  ggplot2::theme_minimal ( ) +
+  ggplot2::theme ( plot.title = ggplot2::element_text ( face = "bold" ) ) +
+  ggplot2::labs (
+    x = NULL, y = NULL,
+    title = "Frequency  Tweets statuses for period 23/05/2018-03/06/2018",
+    subtitle = "Twitter status (tweet) counts aggregated using one minute intervals",
+    caption = "\nSource: Data collected from Twitter's REST API via rtweet",
+    color = "Retweet?" ) +
+    geom_rect ( data = TIMEFRAME,
+                aes(xmin = as.POSIXct(begin,tz = "GMT"), xmax =as.POSIXct( end,tz = "GMT"), ymin = -Inf, ymax = +Inf),
+                inherit.aes = FALSE, fill = "red", alpha = 0.1)
+
+
+```
+
+##  Most common hashtags 
+
+Now that we are sure about the correlation between political happenings and tweets activity, let's start our data exploration from the hashtags.
+Plotting the 20 top hashtags gives us an idea of what other hashtags has been used apart the one collected directly, and is a first check for the quality of the data. In fact the same hashtag can be writter in a lot of different manners, and the fact that there are not similar duplicates is a proof of work of the cleaning pipeline.
+
+```{r "top 20 Hashtag analysis"}
+#hashtag study
+
+#tidying dataset for lexical analysis
+library(tidyverse)
+library(rtweet)
+
+library(gridExtra)
+
+library(tidytext)
+library(widyr)
+library(igraph)
+library(ggraph)
+#--------------------------------------------------------------------------------------------Hashtag
+#Tidy for hashtag study
+dataset=readRDS("/home/doma/0dssc/data_managment/esame_finale/data/FINAL_DATA_DEFINITIVO/reduced_tweet_no_duplicati_stripped_text_separated.RDS")
+#only italian language tweets
+dataset=dataset%>%filter(lang=="it")
+
+
+
+
+
+# remove punctuation, convert to lowercase.
+dataset_clean <- dataset %>%
+  select(hashtags) %>%
+  unnest_tokens(word, hashtags)
+#put in original dataframe
+dataset$hashtags=dataset_clean$word
+
+a=dataset_clean %>%
+  count(word, sort = TRUE)
+
+
+
+
+#plot the top 20 HASHTAGS
+dataset_clean %>%
+  count(word, sort = TRUE) %>%
+  
+  top_n(20+1) %>%
+  filter(!is.na(word))%>%
+  mutate(word = reorder(word, n)) %>%
+  ggplot(aes(x = word, y = n)) +
+  geom_col(aes(alpha=n),show.legend =FALSE) +
+  xlab(NULL) +
+  coord_flip() +
+  labs(x = "Hashtags",
+       y = "Count",
+       title = " Top 20 hashtags by count")+
+  ggplot2::theme_minimal()
+
+```
+
+
+
+##Hashtags frequency
+Here it's possible to see how the hashtag composition changed over time.
+I selected from all the hashtags the ones related to major events, otherwise the plot becomes unreadable.
+As we can see the hashtag "Mattarella" is very common, and that's reasonable since it's the main topic of all the discussion.
+
+On the First of June it's possible to see the spike related to the new government [3],
+signalled by the spike in hashtag "governolegam5s".
+
+
+
+```{r "Hashtag analysis"}
+
+#hashtag study
+
+#tidying dataset for lexical analysis
+library(tidyverse)
+library(rtweet)
+
+library(gridExtra)
+
+library(tidytext)
+library(widyr)
+library(igraph)
+library(ggraph)
+#--------------------------------------------------------------------------------------------Hashtag
+#Tidy for hashtag study
+dataset=readRDS("/home/doma/0dssc/data_managment/esame_finale/data/FINAL_DATA_DEFINITIVO/reduced_tweet_no_duplicati_stripped_text_separated.RDS")
+#only italian language tweets
+dataset=dataset%>%filter(lang=="it")
+
+
+
+
+
+# remove punctuation, convert to lowercase.
+dataset_clean <- dataset %>%
+  select(hashtags) %>%
+  unnest_tokens(word, hashtags)
+#put in original dataframe
+dataset$hashtags=dataset_clean$word
+
+#POSTING ANALYSIS DIVIDED BY TWEET
+
+top_hashtags=dataset_clean %>%
+  count(word, sort = TRUE) %>%
+  top_n(10)%>%
+  filter(!is.na(word))
+
+#Operazione fondamentale per beccare le parole esatte! altrimenti la regex ne becca troppe (semepio mattarella ----> iostoconmattarella)
+top_hashtags$word= sub("^", "^", top_hashtags$word )
+top_hashtags$word= sub("$", "$", top_hashtags$word )
+
+#filtro il dataset
+dataset=dataset %>% mutate(has_top_hashtag=str_detect(hashtags,paste(top_hashtags$word,collapse= '|')))
+
+#all data series
+dataset%>%
+  filter(hashtags=="mattarella" | hashtags == "iostoconmattarella" | hashtags == "ilmiovotoconta" | hashtags == "governolegam5s")%>%
+  group_by(hashtags,is_retweet)%>%
+  filter(created_at>="2018-05-23"& created_at<="2018-06-03") %>%
+  ts_plot( "1 hour") +
+  ggplot2::theme_minimal() +
+  ggplot2::theme(plot.title = ggplot2::element_text(face = "bold")) +
+  ggplot2::labs(
+    x = NULL,
+    y = NULL,
+    title = "Frequency  Tweets statuses for period 27/05/2018-29/05/2018",
+    subtitle = "Twitter status (tweet) counts aggregated using one-hour intervals",
+    caption = "\nSource: Data collected from Twitter's REST API via rtweet",
+    linetype=" Retweet?",
+    colour = " Hashtags"
+  )  
+
+
+
+
+
+```
+
+Let's look again at the first spike,this time the selected hashtags are the ones depicting some kind of feeling, namely support or aversion to the President's decision. However this interpetation is to take "cum grano salis" since on twitter hashtags are ofthen used with irony, so the correlation between the hashtag and it's meaning is not so immediate.
+Again the red square mark the official communications period from the authorities.
+As we can see  the pattern for the two main tweets is quite similar, more retweets than tweets.
+The absoulute numbers for the peak period are similar too, even if the tails are quite different, the hashtag "iostoconmattarella" has a longer tail, whereas "mattarelladimettiti" has a steeper pattern.
+
+```{r "Hashtag analysis zoom"}
+
+#hashtag study
+
+#tidying dataset for lexical analysis
+library(tidyverse)
+library(rtweet)
+
+library(gridExtra)
+
+library(tidytext)
+library(widyr)
+library(igraph)
+library(ggraph)
+#--------------------------------------------------------------------------------------------Hashtag
+#Tidy for hashtag study
+dataset=readRDS("/home/doma/0dssc/data_managment/esame_finale/data/FINAL_DATA_DEFINITIVO/reduced_tweet_no_duplicati_stripped_text_separated.RDS")
+#only italian language tweets
+dataset=dataset%>%filter(lang=="it")
+
+#zoom on hot time
+p4=dataset%>%
+  #filter(has_top_hashtag==TRUE)%>%
+    filter(hashtags=="iostoconmattarella" | hashtags=="mattarelladimettiti" | hashtags=="impeachment" 
+           | hashtags=="impeachmentmattarella" )%>%
+
+  group_by(hashtags,is_retweet)%>%
+   filter ( created_at >= as.POSIXct("2018-05-27 16:00:00",tz = "GMT") & created_at <= as.POSIXct("2018-05-27 19:30:00",tz = "GMT") ) %>%
+  ts_plot( "1 minutes") +
+  ggplot2::theme_minimal() +
+  ggplot2::theme(plot.title = ggplot2::element_text(face = "bold")) +
+  ggplot2::labs(
+    x = NULL,
+    y = NULL,
+    title = "Frequency  Tweets statuses for period 16:00-19:30 27/05/2018",
+    subtitle = "Twitter status (tweet) counts aggregated using one-minute intervals",
+    caption = "\nSource: Data collected from Twitter's REST API via rtweet",
+    linetype="Retweet?",
+    colour = " Hashtags"
+  )  +
+    geom_rect(data = TIMEFRAME,
+                aes(xmin = as.POSIXct(begin,tz = "GMT"), xmax =as.POSIXct( end,tz = "GMT"), ymin = -Inf, ymax = +Inf),
+                inherit.aes = FALSE, fill = "red", alpha = 0.1)
+                
+                
+                p4
+```
+
+
+
+## Words count 
+
+
+
+Since the goal of this part is to carachterize the users by the words they used I retained only non duplicated non retweets, otherwise the results would be artificially inflated since the words presents in a very popular retweets would be overwhelming on the others.
+Additionally the tweets has been stripped of numbers, links, hashtags, with the exception of the number 5, that is in the name of the 5 Star Moviment, so it shouldn't be removed for a proper analysis.
+Again the word count shows that the cleaning pipeline is working and we don't have unproper words. All the words in the top 20 list are linked with politics, politicians or political parties.
+At this point we are still unable to to grasp the overall people sentiment, and dividing the words by their associated hashtags doesn't help since the majority of words are the same.
+
+```{r "word tidy analysis",warning=FALSE,message=FALSE}
+library(gridExtra)
+library(tidyverse)
+library(tidytext)
+library(widyr)
+library(rtweet)
+
+
+# load list of stop words - from github project
+italian_stop_words=read.csv("https://raw.githubusercontent.com/stopwords-iso/stopwords-it/master/stopwords-it.txt")
+colnames(italian_stop_words)="word"
+italian_stop_words$word=as.character(italian_stop_words$word)
+#modifico aggiungendo una "a"
+italian_stop_words=rbind(italian_stop_words,"a")
+
+
+
+#proviamo a dividire per hashtag, qui correggo e metto gli hashtag giusti senza maiuscole e problemi vari
+unique_tweets=readRDS("/home/doma/0dssc/data_managment/esame_finale/data/FINAL_DATA_DEFINITIVO/all_tweets_cleaned_stripped_unique_ita.rds")
+unique_tweets_tidy0=separate_rows(unique_tweets) 
+dataset_clean <- unique_tweets_tidy0 %>%
+  select(hashtags) %>%
+  unnest_tokens(word, hashtags)
+unique_tweets_tidy0$hashtags=dataset_clean$word
+
+#in ordine di apparizione
+hashes= c(  "mattarella", "salvini","dimaio","iostoconmattarella", "ilmiovotoconta","governolegam5s","savona","mattarelladimettiti","cottarelli","impeachment","impeachmentmattarella","maratonamentana") 
+
+
+
+
+#------------------------------------------blocco 1 "iostoconmattarella"
+#filtro per hashtag
+unique_tweets_tidy=unique_tweets_tidy0%>%
+  filter(hashtags=="iostoconmattarella")
+
+#----------------------------------------------------------pezzo che si occupa di calcolare la frequenza delle parole
+#contiamo le parole, non gli hashtag
+dataset_clean <- unique_tweets_tidy %>%
+  select(stripped_text) %>%
+  unnest_tokens(word, stripped_text)
+# remove stop words from your list of words
+dataset_clean <- dataset_clean %>%
+  anti_join(italian_stop_words)
+#-----------------------------------------------------------
+
+# #plot the top 20 words
+plot1=dataset_clean %>%
+  count(word, sort = TRUE) %>%
+  top_n(20) %>%
+  mutate(word = reorder(word, n)) %>%
+  ggplot(aes(x = word, y = n)) +
+  geom_col(aes(alpha=n),show.legend =FALSE) +
+  xlab(NULL) +
+  coord_flip() +
+  labs(x = "Unique words",
+       y = "Count",
+       title = paste("#" ,"iostoconmattarella"))+
+  theme_minimal()
+
+
+#------------------------------------------
+
+
+#------------------------------------------blocco 2 contro mattarella
+#filtro per hashtag
+unique_tweets_tidy=unique_tweets_tidy0%>%
+  filter(hashtags=="impeachment" | hashtags=="impeachmentmattarella" | hashtags=="mattarelladimettiti")
+
+#----------------------------------------------------------pezzo che si occupa di calcolare la frequenza delle parole
+#contiamo le parole, non gli hashtag
+dataset_clean <- unique_tweets_tidy %>%
+  select(stripped_text) %>%
+  unnest_tokens(word, stripped_text)
+# remove stop words from your list of words
+dataset_clean <- dataset_clean %>%
+  anti_join(italian_stop_words)
+#-----------------------------------------------------------
+
+# #plot the top 20 words
+plot2=dataset_clean %>%
+  count(word, sort = TRUE) %>%
+  top_n(20) %>%
+  mutate(word = reorder(word, n)) %>%
+  ggplot(aes(x = word, y = n)) +
+  geom_col(aes(alpha=n),show.legend =FALSE) +
+  xlab(NULL) +
+  coord_flip() +
+  labs(x = "Unique words",
+       y = "Count",
+       title = paste("#" ,"mattarelladimmetti +"),
+  subtitle="#impeachment + #impeachmentmattarella")+
+  theme_minimal()
+
+
+#------------------------------------------
+
+#------------------------------------------blocco 3 mattarella
+#filtro per hashtag
+unique_tweets_tidy=unique_tweets_tidy0%>%
+  filter(hashtags=="mattarella" )
+
+#----------------------------------------------------------pezzo che si occupa di calcolare la frequenza delle parole
+#contiamo le parole, non gli hashtag
+dataset_clean <- unique_tweets_tidy %>%
+  select(stripped_text) %>%
+  unnest_tokens(word, stripped_text)
+# remove stop words from your list of words
+dataset_clean <- dataset_clean %>%
+  anti_join(italian_stop_words)
+#-----------------------------------------------------------
+
+# #plot the top 20 words
+plot3=dataset_clean %>%
+  count(word, sort = TRUE) %>%
+  top_n(20) %>%
+  mutate(word = reorder(word, n)) %>%
+  ggplot(aes(x = word, y = n)) +
+  geom_col(aes(alpha=n),show.legend =FALSE) +
+  xlab(NULL) +
+  coord_flip() +
+  labs(x = "Unique words",
+       y = "Count",
+       title = paste("#" ,"mattarella"))+
+  theme_minimal()
+
+
+#------------------------------------------
+
+#------------------------------------------blocco 4 salvini
+#filtro per hashtag
+unique_tweets_tidy=unique_tweets_tidy0%>%
+  filter(hashtags=="salvini" )
+
+#----------------------------------------------------------pezzo che si occupa di calcolare la frequenza delle parole
+#contiamo le parole, non gli hashtag
+dataset_clean <- unique_tweets_tidy %>%
+  select(stripped_text) %>%
+  unnest_tokens(word, stripped_text)
+# remove stop words from your list of words
+dataset_clean <- dataset_clean %>%
+  anti_join(italian_stop_words)
+#-----------------------------------------------------------
+
+# #plot the top 20 words
+plot4=dataset_clean %>%
+  count(word, sort = TRUE) %>%
+  top_n(20) %>%
+  mutate(word = reorder(word, n)) %>%
+  ggplot(aes(x = word, y = n)) +
+  geom_col(aes(alpha=n),show.legend =FALSE) +
+  xlab(NULL) +
+  coord_flip() +
+  labs(x = "Unique words",
+       y = "Count",
+       title = "#salvini")+
+  theme_minimal()
+
+
+#------------------------------------------
+
+#------------------------------------------blocco 5 di maio
+#filtro per hashtag
+unique_tweets_tidy=unique_tweets_tidy0%>%
+  filter(hashtags=="dimaio" )
+
+#----------------------------------------------------------pezzo che si occupa di calcolare la frequenza delle parole
+#contiamo le parole, non gli hashtag
+dataset_clean <- unique_tweets_tidy %>%
+  select(stripped_text) %>%
+  unnest_tokens(word, stripped_text)
+# remove stop words from your list of words
+dataset_clean <- dataset_clean %>%
+  anti_join(italian_stop_words)
+#-----------------------------------------------------------
+
+# #plot the top 20 words
+plot5=dataset_clean %>%
+  count(word, sort = TRUE) %>%
+  top_n(20) %>%
+  mutate(word = reorder(word, n)) %>%
+  ggplot(aes(x = word, y = n)) +
+  geom_col(aes(alpha=n),show.legend =FALSE) +
+  xlab(NULL) +
+  coord_flip() +
+  labs(x = "Unique words",
+       y = "Count",
+       title = "#dimaio")+
+  theme_minimal()
+
+
+#------------------------------------------
+
+#------------------------------------------blocco 6 tutti assieme
+#filtro per hashtag
+unique_tweets_tidy=unique_tweets_tidy0
+  
+
+#----------------------------------------------------------pezzo che si occupa di calcolare la frequenza delle parole
+#contiamo le parole, non gli hashtag
+dataset_clean <- unique_tweets_tidy %>%
+  select(stripped_text) %>%
+  unnest_tokens(word, stripped_text)
+# remove stop words from your list of words
+dataset_clean <- dataset_clean %>%
+  anti_join(italian_stop_words)
+#-----------------------------------------------------------
+
+# #plot the top 20 words
+plot6=dataset_clean %>%
+  count(word, sort = TRUE) %>%
+  top_n(20) %>%
+  mutate(word = reorder(word, n)) %>%
+  ggplot(aes(x = word, y = n)) +
+  geom_col(aes(alpha=n),show.legend =FALSE) +
+  xlab(NULL) +
+  coord_flip() +
+  labs(x = "Unique words",
+       y = "Count",
+       title = "all tweets")+
+  theme_minimal()
+
+
+#------------------------------------------
+
+
+# #plotting results
+
+ # grid.arrange(plot1,plot2,ncol=2)
+ # grid.arrange(plot3,plot6,ncol=2)
+ # grid.arrange(plot5,plot4,ncol=2)
+
+plot(plot6)
+
+
+
+
+
+
+
+```
+
+##Words are important
+Here comes the central part of this work. It presents some kind of novelty as compared to works about sentiment analysis of Twitter data that I read about. The idea is to reveale users sentiment using their vocabulary filtered using the vocabulary of the group that opposes their ideas, but not all of it, only a subset, otherwise we remove too much information.
+In practice what I do is to divide the tweets by hashtag, then count the most occuring words. At this point for each hashtag, or group of hashtags, I retain only the words with a frequency higher than a certain threshold, the value of which has to be estimated experimentallly.
+Finally I subtract all the common words between the two groups and what is left is the characteristic words of the underlying population.
+Additionally that's the only way that I found to tackle the problems introduced by two extremly penalizing conditions: the language of tweets and the extremely peculiar lexicon used. The first is a problem because the majority of work on sentiment analysis is done for the english language, and I didn't had time to delve into the realm of unsupervised learning. The second is a problem because there aren't aviable precompiled lists of words to use to perform sentyment analysis in the classical way.
+In the following graphs is possible to see the results of this operation performed on various subsets.
+
+```{r,"Subgroups words usage mattarella vs tutti"}
+
+library("gridExtra")
+library(tidyverse)
+library(tidytext)
+library(widyr)
+library(igraph)
+library(ggraph)
+
+
+# load list of stop words - from github project
+italian_stop_words=read.csv("https://raw.githubusercontent.com/stopwords-iso/stopwords-it/master/stopwords-it.txt")
+colnames(italian_stop_words)="word"
+italian_stop_words$word=as.character(italian_stop_words$word)
+#modifico aggiungendo una "a"
+italian_stop_words=rbind(italian_stop_words,"a")
+
+
+#proviamo a dividire per hashtag, qui correggo e metto gli hashtag giusti senza maiuscole e problemi vari
+unique_tweets=readRDS("/home/doma/0dssc/data_managment/esame_finale/data/FINAL_DATA_DEFINITIVO/all_tweets_cleaned_stripped_unique_ita.rds")
+unique_tweets_tidy0=separate_rows(unique_tweets) 
+dataset_clean <- unique_tweets_tidy0 %>%
+  select(hashtags) %>%
+  unnest_tokens(word, hashtags)
+unique_tweets_tidy0$hashtags=dataset_clean$word
+
+#in ordine di apparizione
+hashes= c(  "mattarella", "salvini","dimaio","iostoconmattarella", "ilmiovotoconta","governolegam5s","savona","mattarelladimettiti","cottarelli","impeachment","impeachmentmattarella","maratonamentana") 
+
+#for unique words
+datalist = list()
+i=1
+for(i in 1:length(hashes)){
+hash=hashes[i]
+
+#filtro per hashtag
+unique_tweets_tidy=unique_tweets_tidy0%>%
+  filter(hashtags==hash)
+#----------------------------------------------------------pezzo che si occupa di calcolare la frequenza delle parole
+#contiamo le parole, non gli hashtag
+dataset_clean <- unique_tweets_tidy %>%
+  select(stripped_text) %>%
+  unnest_tokens(word, stripped_text)
+# remove stop words from your list of words
+dataset_clean <- dataset_clean %>%
+  anti_join(italian_stop_words)
+#-----------------------------------------------------------
+all_words_counted=dataset_clean %>%
+  count(word, sort = TRUE)
+all_words_counted=mutate(all_words_counted,hashtags=hash)
+#store data in a list to open later
+datalist[[i]]=all_words_counted
+}
+#binding results of counting words
+counted_words = do.call(rbind, datalist)
+
+
+
+#and now a comparison of the vocabulary used by the subgroups
+#----------------------------------------
+#Common and special lexicons
+minimum_repetitions=5
+all_words_contro=counted_words %>%
+  filter(hashtags=="impeachment" | hashtags=="mattarelladimettiti" | hashtags =="impeachmentmattarella" & n>=minimum_repetitions)
+  #filter(hashtags=="mattarella" & n>=100)
+all_words_pro=counted_words %>%
+  filter(hashtags=="iostoconmattarella"& n>=minimum_repetitions )
+only_pro = anti_join(all_words_pro,all_words_contro,by="word")
+only_contra = anti_join(all_words_contro,all_words_pro,by="word")
+common=inner_join(all_words_pro,all_words_contro,by="word")
+#plot the top 20 words
+plot1=only_pro[1:20,] %>%
+  #count(word, sort = TRUE) %>%
+  #top_n(20,n) %>%
+  mutate(word = reorder(word, n)) %>%
+  ggplot(aes(x = word, y = n)) +
+  geom_col(aes(alpha=n),show.legend =FALSE) +
+  xlab(NULL) +
+  coord_flip() +
+  labs(x = "Count",
+       y = "Unique words",
+       title = " Pro Mattarella group",
+       subtitle = "Hashtags: #iostoconmattarella",
+       
+       caption=paste("\nN° of words:",as.character(dim(only_pro)),"out of",as.character(dim(all_words_pro)) ))+
+  theme_minimal()
+
+#plot the top 20 words
+plot2=only_contra[1:20,] %>%
+  #count(word, sort = TRUE) %>%
+  #top_n(20,n) %>%
+  mutate(word = reorder(word, n)) %>%
+  ggplot(aes(x = word, y = n)) +
+  geom_col(aes(alpha=n),show.legend =FALSE) +
+  xlab(NULL) +
+  coord_flip() +
+  labs(x = "Count",
+       y = "Unique words",
+       title = "Contra mattarella group ",
+       subtitle = "  Hashtags: #impeachment,\n #mattarellaimpeachment,  #mattarelladimettiti",
+       caption=paste("\nN° of words:",as.character(dim(only_contra)),"out of",as.character(dim(all_words_contro)),"filter=",as.character(minimum_repetitions) ))+
+  
+  theme_minimal()
+
+grid.arrange(plot1, plot2, ncol=2,top = "Lexicon comparison betweet pro and contra Mattarella groups")
+
+
+#-------------------------------------------
+```
+
+```{r "salvini vs dimaio"}
+minimum_repetitions=20
+hashtag_contro="dimaio"
+hashtag_pro="salvini"
+#and now a comparison of the vocabulary used by the subgroups
+#----------------------------------------
+#Common and special lexicons
+
+all_words_contro=counted_words %>%
+  filter(hashtags==hashtag_contro& n>=minimum_repetitions)
+  #filter(hashtags=="mattarella" & n>=100)
+all_words_pro=counted_words %>%
+  filter(hashtags==hashtag_pro& n>=minimum_repetitions )
+only_pro = anti_join(all_words_pro,all_words_contro,by="word")
+only_contra = anti_join(all_words_contro,all_words_pro,by="word")
+common=inner_join(all_words_pro,all_words_contro,by="word")
+#plot the top 20 words
+plot1=only_pro[1:20,] %>%
+  #count(word, sort = TRUE) %>%
+  #top_n(20,n) %>%
+  mutate(word = reorder(word, n)) %>%
+  ggplot(aes(x = word, y = n)) +
+  geom_col(aes(alpha=n),show.legend =FALSE) +
+  xlab(NULL) +
+  coord_flip() +
+  labs(x = "",
+       y = "",
+       title = hashtag_pro,
+       subtitle = paste("Hashtags:#",hashtag_pro),
+       
+       caption=paste("\nN° of words:",as.character(dim(only_pro)),"out of",as.character(dim(all_words_pro)),"filter=",as.character(minimum_repetitions) ))+
+  theme_minimal()
+
+#plot the top 20 words
+plot2=only_contra[1:20,] %>%
+  #count(word, sort = TRUE) %>%
+  #top_n(20,n) %>%
+  mutate(word = reorder(word, n)) %>%
+  ggplot(aes(x = word, y = n)) +
+  geom_col(aes(alpha=n),show.legend =FALSE) +
+  xlab(NULL) +
+  coord_flip() +
+  labs(x = "",
+       y = "",
+       title = hashtag_contro,
+       subtitle = paste("Hashtags:#",hashtag_contro),
+       caption=paste("\nN° of words:",as.character(dim(only_contra)),"out of",as.character(dim(all_words_contro)),"filter=",as.character(minimum_repetitions) ))+
+  
+  theme_minimal()
+
+grid.arrange(plot1, plot2, ncol=2,top = paste( hashtag_pro," vs ",hashtag_contro ))
+```
+
+```{r salvini vs mattarella}
+minimum_repetitions=20
+hashtag_contro="salvini"
+hashtag_pro="mattarella"
+#and now a comparison of the vocabulary used by the subgroups
+#----------------------------------------
+#Common and special lexicons
+
+all_words_contro=counted_words %>%
+  filter(hashtags==hashtag_contro& n>=minimum_repetitions)
+  #filter(hashtags=="mattarella" & n>=100)
+all_words_pro=counted_words %>%
+  filter(hashtags==hashtag_pro& n>=minimum_repetitions )
+only_pro = anti_join(all_words_pro,all_words_contro,by="word")
+only_contra = anti_join(all_words_contro,all_words_pro,by="word")
+common=inner_join(all_words_pro,all_words_contro,by="word")
+#plot the top 20 words
+plot1=only_pro[1:20,] %>%
+  #count(word, sort = TRUE) %>%
+  #top_n(20,n) %>%
+  mutate(word = reorder(word, n)) %>%
+  ggplot(aes(x = word, y = n)) +
+  geom_col(aes(alpha=n),show.legend =FALSE) +
+  xlab(NULL) +
+  coord_flip() +
+  labs(x = "",
+       y = "",
+       title = hashtag_pro,
+       subtitle = paste("Hashtags:#",hashtag_pro),
+       
+       caption=paste("\nN° of words:",as.character(dim(only_pro)),"out of",as.character(dim(all_words_pro)),"filter=",as.character(minimum_repetitions) ))+
+  theme_minimal()
+
+#plot the top 20 words
+plot2=only_contra[1:20,] %>%
+  #count(word, sort = TRUE) %>%
+  #top_n(20,n) %>%
+  mutate(word = reorder(word, n)) %>%
+  ggplot(aes(x = word, y = n)) +
+  geom_col(aes(alpha=n),show.legend =FALSE) +
+  xlab(NULL) +
+  coord_flip() +
+  labs(x = "",
+       y = "",
+       title = hashtag_contro,
+       subtitle = paste("Hashtags:#",hashtag_contro),
+       caption=paste("\nN° of words:",as.character(dim(only_contra)),"out of",as.character(dim(all_words_contro)),"filter=",as.character(minimum_repetitions) ))+
+  
+  theme_minimal()
+
+grid.arrange(plot1, plot2, ncol=2,top = paste( hashtag_pro," vs ",hashtag_contro ))
+```
+
+```{r dimaio vs mattarella}
+minimum_repetitions=20
+hashtag_contro="dimaio"
+hashtag_pro="mattarella"
+#and now a comparison of the vocabulary used by the subgroups
+#----------------------------------------
+#Common and special lexicons
+
+all_words_contro=counted_words %>%
+  filter(hashtags==hashtag_contro& n>=minimum_repetitions)
+  #filter(hashtags=="mattarella" & n>=100)
+all_words_pro=counted_words %>%
+  filter(hashtags==hashtag_pro& n>=minimum_repetitions )
+only_pro = anti_join(all_words_pro,all_words_contro,by="word")
+only_contra = anti_join(all_words_contro,all_words_pro,by="word")
+common=inner_join(all_words_pro,all_words_contro,by="word")
+#plot the top 20 words
+plot1=only_pro[1:20,] %>%
+  #count(word, sort = TRUE) %>%
+  #top_n(20,n) %>%
+  mutate(word = reorder(word, n)) %>%
+  ggplot(aes(x = word, y = n)) +
+  geom_col(aes(alpha=n),show.legend =FALSE) +
+  xlab(NULL) +
+  coord_flip() +
+  labs(x = "",
+       y = "",
+       title = hashtag_pro,
+       subtitle = paste("Hashtags:#",hashtag_pro),
+       
+       caption=paste("\nN° of words:",as.character(dim(only_pro)),"out of",as.character(dim(all_words_pro)),"filter=",as.character(minimum_repetitions) ))+
+  theme_minimal()
+
+#plot the top 20 words
+plot2=only_contra[1:20,] %>%
+  #count(word, sort = TRUE) %>%
+  #top_n(20,n) %>%
+  mutate(word = reorder(word, n)) %>%
+  ggplot(aes(x = word, y = n)) +
+  geom_col(aes(alpha=n),show.legend =FALSE) +
+  xlab(NULL) +
+  coord_flip() +
+  labs(x = "",
+       y = "",
+       title = hashtag_contro,
+       subtitle = paste("Hashtags:#",hashtag_contro),
+       caption=paste("\nN° of words:",as.character(dim(only_contra)),"out of",as.character(dim(all_words_contro)),"filter=",as.character(minimum_repetitions) ))+
+  
+  theme_minimal()
+
+grid.arrange(plot1, plot2, ncol=2,top = paste( hashtag_pro," vs ",hashtag_contro ))
+```
+
+
+
+
+
+
+
+
+
+
+##Correlation between terms
+Until now we worked at the level of single words, Here I want to discuss at the level of groups of words using the correlation between them. 
+
+```{r "Correlation words"}
+
+library(tidyverse)
+library(tidytext)
+library(widyr)
+library(igraph)
+library(ggraph)
+#unique_tweet:dataset che contiene tutti i tweet diversi un dall'altro e che non sono retweet. in questo modo ho tutte le frasi diverse pro 
+#pronunciate, che mi sembra ottimo per studiare il lessico degli utenti.
+
+#data_prova_words: dataset con i tweet di unique_tweet elaborati secondo il cleaning necessario a produrre il grafico delle correlazioni
+
+
+#dati ripuliti in cleaning.R
+#unique_tweets=readRDS("/home/doma/0dssc/data_managment/esame_finale/data/FINAL_DATA_DEFINITIVO/all_tweets_cleaned_stripped_unique_ita.rds")
+#data_prova_words=readRDS("/home/doma/0dssc/data_managment/esame_finale/data/FINAL_DATA_DEFINITIVO/shiny_words_input_duplicates.rds")
+
+#-----preparing for correlation 
+# load list of stop words - from github project
+italian_stop_words=read.csv("https://raw.githubusercontent.com/stopwords-iso/stopwords-it/master/stopwords-it.txt")
+colnames(italian_stop_words)="word"
+italian_stop_words$word=as.character(italian_stop_words$word)
+#modifico aggiungendo una "a"
+italian_stop_words=rbind(italian_stop_words,"a")
+#-----
+
+
+
+
+
+
+#proviamo a dividire per hashtag
+unique_tweets=readRDS("/home/doma/0dssc/data_managment/esame_finale/data/FINAL_DATA_DEFINITIVO/all_tweets_cleaned_stripped_unique_ita.rds")
+unique_tweets_tidy=separate_rows(unique_tweets) 
+dataset_clean <- unique_tweets_tidy %>%
+  select(hashtags) %>%
+  unnest_tokens(word, hashtags)
+
+#put in original dataframe
+unique_tweets_tidy$hashtags=dataset_clean$word
+
+hash="iostoconmattarella"
+filter=60
+cor=0.7
+
+ unique_tweets_filtered= 
+    unique_tweets_tidy%>%
+    filter(hashtags==hash)
+     
+    
+  
+  data_prova=unique_tweets_filtered%>%
+    select(status_id,stripped_text)
+  
+  
+  data_prova_words=data_prova %>%
+    unnest_tokens(word,stripped_text)
+  
+  
+  # remove stop words from your list of words
+  word_cors  <- 
+    
+    data_prova_words %>%
+    anti_join(italian_stop_words) %>%
+      group_by(word) %>%
+      filter(n() >= filter) %>%
+      pairwise_cor(word, status_id, sort = TRUE)
+ 
+  
+   set.seed(1)
+      
+      
+      word_cors %>%
+      filter(correlation > cor) %>%
+      graph_from_data_frame() %>%
+      ggraph(layout = "fr") +
+      geom_edge_link(aes(edge_alpha = correlation), show.legend = TRUE,colour="red" ,width=1) +
+      geom_node_point(color = "lightblue", size = 5) +
+      geom_node_text(aes(label = name), repel = TRUE,color="black") +
+  theme_void()+
+        labs(title =paste( " Correlation between words, hashtag:",hash),
+       caption=paste("threshold for correlation:",paste(as.character(cor)),"\nminimum number of repetitions:",as.character(filter)))
+
+
+
+```
+
+```{r "mattarelladimettiti"}
+hash="mattarelladimettiti"
+filter=20
+cor=0.4
+
+ unique_tweets_filtered= 
+    unique_tweets_tidy%>%
+    filter(hashtags==hash)
+     
+    
+  
+  data_prova=unique_tweets_filtered%>%
+    select(status_id,stripped_text)
+  
+  
+  data_prova_words=data_prova %>%
+    unnest_tokens(word,stripped_text)
+  
+  
+  # remove stop words from your list of words
+  word_cors  <- 
+    
+    data_prova_words %>%
+    anti_join(italian_stop_words) %>%
+      group_by(word) %>%
+      filter(n() >= filter) %>%
+      pairwise_cor(word, status_id, sort = TRUE)
+ 
+  
+   set.seed(1)
+      
+      
+      word_cors %>%
+      filter(correlation > cor) %>%
+      graph_from_data_frame() %>%
+      ggraph(layout = "fr") +
+      geom_edge_link(aes(edge_alpha = correlation), show.legend = TRUE,colour="red" ,width=1) +
+      geom_node_point(color = "lightblue", size = 5) +
+      geom_node_text(aes(label = name), repel = TRUE,color="black") +
+  theme_void()+
+        labs(title =paste( " Correlation between words, hashtag:",hash),
+       caption=paste("threshold for correlation:",paste(as.character(cor)),"\nminimum number of repetitions:",as.character(filter)))
+
+
+
+```
+
+
+
+
+
+
+
+
+#Retweets analysis
+
+Here I measure the penetration power of the two most re-tweeted tweets of the 2 groups, in therms of friends and followers.
+
+```{r "Penetration power"}
+#analisi retweets
+library(tidyverse)
+library(rtweet)
+#How many people the most retweeted tweet reached? pay attention that followers could be replicated.
+dataset=readRDS("~/0dssc/data_managment/esame_finale/data/FINAL_DATA_DEFINITIVO/tutti_i_tweet_no_duplicati.RDS" )
+dataset=dataset%>%filter(lang=="it")
+
+
+#find top retweets
+top_retweets=dataset%>%
+  filter(is_retweet==FALSE)%>%
+  top_n(200,retweet_count)%>%
+  arrange(-retweet_count)
+retweetters=readRDS("~/0dssc/data_managment/esame_finale/data/info_users/all_users_info.rds")
+#find all the retweets of given tweet
+retweet=filter(dataset,retweet_status_id==top_retweets$status_id[14])
+
+
+
+full_data=inner_join(retweet,retweetters,by="user_id")
+
+full_data=full_data%>%
+  arrange(created_at)%>%
+  mutate(penetrazione_followers=cumsum(followers_count))%>%
+  mutate(penetrazione_friends=cumsum(friends_count))
+
+
+retweet=filter(dataset,retweet_status_id==top_retweets$status_id[3])
+full_data=inner_join(retweet,retweetters,by="user_id")
+full_data=full_data%>%
+  arrange(created_at)%>%
+  mutate(penetrazione_followers=cumsum(followers_count))%>%
+  mutate(penetrazione_friends=cumsum(friends_count))
+penetration_followers=select(full_data,created_at,penetrazione_followers,penetrazione_friends)
+retweet_3=mutate(retweet,autore=as.factor("top3"))
+penetration_followers_3=mutate(penetration_followers,autore=as.factor("top3"))
+
+
+retweet=filter(dataset,retweet_status_id==top_retweets$status_id[8])
+full_data=inner_join(retweet,retweetters,by="user_id")
+full_data=full_data%>%
+  arrange(created_at)%>%
+  mutate(penetrazione_followers=cumsum(followers_count))%>%
+  mutate(penetrazione_friends=cumsum(friends_count))
+penetration_followers=select(full_data,created_at,penetrazione_followers,penetrazione_friends)
+retweet_8=mutate(retweet,autore=as.factor("top8"))
+penetration_followers_8=mutate(penetration_followers,autore=as.factor("top8"))
+
+
+retweet=filter(dataset,retweet_status_id==top_retweets$status_id[11])
+full_data=inner_join(retweet,retweetters,by="user_id")
+full_data=full_data%>%
+  arrange(created_at)%>%
+  mutate(penetrazione_followers=cumsum(followers_count))%>%
+  mutate(penetrazione_friends=cumsum(friends_count))
+penetration_followers=select(full_data,created_at,penetrazione_followers,penetrazione_friends)
+retweet_11=mutate(retweet,autore=as.factor("top11"))
+penetration_followers_11=mutate(penetration_followers,autore=as.factor("top11"))
+
+
+retweet=filter(dataset,retweet_status_id==top_retweets$status_id[14])
+full_data=inner_join(retweet,retweetters,by="user_id")
+full_data=full_data%>%
+  arrange(created_at)%>%
+  mutate(penetrazione_followers=cumsum(followers_count))%>%
+  mutate(penetrazione_friends=cumsum(friends_count))
+penetration_followers=select(full_data,created_at,penetrazione_followers,penetrazione_friends)
+retweet_14=mutate(retweet,autore=as.factor("top14"))
+penetration_followers_14=mutate(penetration_followers,autore=as.factor("top14"))
+
+retweet=rbind(retweet_3,retweet_8,retweet_11,retweet_14)
+penetration_followers=rbind(penetration_followers_3,penetration_followers_8,penetration_followers_11,penetration_followers_14)
+
+
+penetration_followers%>%
+  #filter(autore=="top14")%>%
+ggplot( aes(created_at, penetrazione_followers,color=autore) )+
+  geom_line() +
+ labs(
+   x = NULL, y = NULL,
+  title="Number of reached followers",
+  color = "Ranking ")+
+  theme_minimal()
+```
+
+
+#Biliography and downloads links
+[1] https://www.sciencedirect.com/science/article/pii/S0378873316304166
+
+[2] "https://raw.githubusercontent.com/stopwords-iso/stopwords-it/master/stopwords-it.txt"
+
+[3] https://www.ansa.it/sito/notizie/politica/2018/05/30/governo-lega-e-m5s-ci-riprovano_78fb9b46-a537-417b-af3f-6465200bb64d.html
+
+dataset download link (from my personal MEGA account): https://mega.nz/#F!tRRnXaRB!fpWKTltVy41uPitWS3JPWQ
+
+
+
+
+
+
+
+
+
+
+
+
