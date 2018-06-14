@@ -36,7 +36,7 @@ italian_stop_words=rbind(italian_stop_words,"a")
 
 
 #proviamo a dividire per hashtag
-unique_tweets=readRDS("./all_tweets_cleaned_stripped_unique_ita.rds")
+unique_tweets=readRDS("/home/doma/0dssc/data_managment/esame_finale/data/FINAL_DATA_DEFINITIVO/all_tweets_cleaned_stripped_unique_ita.rds")
 unique_tweets_tidy=separate_rows(unique_tweets) 
 dataset_clean <- unique_tweets_tidy %>%
   select(hashtags) %>%
