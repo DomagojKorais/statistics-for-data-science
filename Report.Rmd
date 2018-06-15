@@ -729,8 +729,8 @@ plot1=only_pro[1:20,] %>%
   geom_col(aes(alpha=n),show.legend =FALSE) +
   xlab(NULL) +
   coord_flip() +
-  labs(x = "Count",
-       y = "Unique words",
+  labs(y = "Count",
+       x = "Unique words",
        title = " Pro Mattarella group",
        subtitle = "Hashtags: #iostoconmattarella",
        
@@ -746,8 +746,8 @@ plot2=only_contra[1:20,] %>%
   geom_col(aes(alpha=n),show.legend =FALSE) +
   xlab(NULL) +
   coord_flip() +
-  labs(x = "Count",
-       y = "Unique words",
+  labs(y = "Count",
+       x = "Unique words",
        title = "Contra mattarella group ",
        subtitle = "  Hashtags: #impeachment,\n #mattarellaimpeachment,  #mattarelladimettiti",
        caption=paste("\nN° of words:",as.character(dim(only_contra)),"out of",as.character(dim(all_words_contro)),"filter=",as.character(minimum_repetitions) ))+
@@ -791,8 +791,8 @@ plot1=only_pro[1:20,] %>%
   geom_col(aes(alpha=n),show.legend =FALSE) +
   xlab(NULL) +
   coord_flip() +
-  labs(x = "",
-       y = "",
+  labs(y = "Count",
+       x = "Unique words",
        title = hashtag_pro,
        subtitle = paste("Hashtags:#",hashtag_pro),
        
@@ -808,8 +808,8 @@ plot2=only_contra[1:20,] %>%
   geom_col(aes(alpha=n),show.legend =FALSE) +
   xlab(NULL) +
   coord_flip() +
-  labs(x = "",
-       y = "",
+  labs(y = "Count",
+       x = "Unique words",
        title = hashtag_contro,
        subtitle = paste("Hashtags:#",hashtag_contro),
        caption=paste("\nN° of words:",as.character(dim(only_contra)),"out of",as.character(dim(all_words_contro)),"filter=",as.character(minimum_repetitions) ))+
@@ -1022,8 +1022,9 @@ penetration_followers%>%
 ggplot( aes(created_at, penetrazione_followers,color=autore) )+
   geom_line() +
  labs(
-   x = NULL, y = NULL,
-  title="Number of reached followers",
+   x = "Time", y = "Number of reached followers ",
+  title="Penetration power of most retweeted tweets",
+  subtitle = "With full data available",
   color = "Ranking ")+
   theme_minimal()
 ```
