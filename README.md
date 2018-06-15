@@ -3,11 +3,11 @@
 The report is the Report.html file.
 The dynamic version of the report exceeds the maximum size allowed by GitHub, it can be downloaded from this link and is hosted on my Mega account: 
 
-https://mega.nz/#!QQhjWTZQ!j9Y59GW481Ch_6l_uSD7nqORxKsxd_icEiAILGJhujE
+https://mega.nz/#!REhXkQKB!M-iCdlWxmBpGtc2AA7hQJSlz5i1vI3GWD6fY1LEKsbE
 
 BACKUP download link if MEGA is down, from Google Drive:
 
-https://drive.google.com/open?id=1iUpEsgLUqqmRt5UOsUuMO4l69rAfT1B5
+https://drive.google.com/open?id=11H-Bef1Je9UaF9IRAAq6WCT-NF4Q2hVE
 
 
 I suggest to download the dynamic report, even if it changes only in one interactive plot.
