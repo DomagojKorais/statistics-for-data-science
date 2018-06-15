@@ -71,11 +71,11 @@ ui <- fluidPage(
     sidebarPanel(
       
       
-      sliderInput(inputId="number2",step = 1, label="First dataset repetitions treshold", min=1,
+      sliderInput(inputId="number2",step = 1, label="First dataset repetitions threshold", min=1,
                   max=500,
                   value=10),
       
-      sliderInput(inputId="number1",step = 1, label="Second dataset repetitions treshold", min=1,
+      sliderInput(inputId="number1",step = 1, label="Second dataset repetitions threshold", min=1,
                   max=500,
                   value=10),
       
@@ -133,8 +133,8 @@ server <- function(input,output){
     geom_col(aes(alpha=n),show.legend =FALSE) +
     xlab(NULL) +
     coord_flip() +
-    labs(x = "Count",
-         y = "Unique words",
+    labs(y = "Count",
+         x = "Unique words",
          title = input$hash1,
          #subtitle = "Hashtags: #iostoconmattarella",
          
@@ -152,8 +152,8 @@ server <- function(input,output){
     geom_col(aes(alpha=n),show.legend =FALSE) +
     xlab(NULL) +
     coord_flip() +
-    labs(x = "Count",
-         y = "Unique words",
+    labs(y = "Count",
+         x = "Unique words",
          title = input$hash2,
          #subtitle = "  Hashtags: #impeachment,\n #mattarellaimpeachment,  #mattarelladimettiti",
          caption=paste("\nN° of words:",as.character(dim(only_contra())),"out of",as.character(dim(all_words_contro())),"filter=",as.character(input$number1) ))+
