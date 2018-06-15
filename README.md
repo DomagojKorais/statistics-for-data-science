@@ -8,7 +8,7 @@ There are four files:
 
 Cleaning.R file which performs cleaning operations on the datasets. 
 
-data_gathering.R which shows how to download data using Rtweet.
+data_gathering.R which shows how to download data using Rtweet, an R interface for Twitter API's.
 
 The other two are codes for Shiny interactive applications, aviable from links in the report and hosted on shinyapps.io.
 
