@@ -12,7 +12,7 @@ https://drive.google.com/open?id=1iUpEsgLUqqmRt5UOsUuMO4l69rAfT1B5
 
 I suggest to download the dynamic report, even if it changes only in one interactive plot.
 
-Additional R code, not present in the Rmd file that originated the report is loaded.
+Additional R code, not present in the Report.Rmd file that originated the report is loaded.
 
 There are four files: 
 
