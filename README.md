@@ -1,6 +1,8 @@
 # Final exam Data Managment for big data
 
-The report is the Report.html file.
+The report is the Report_static.html file.
+The dynamic version of the report exceeds the maximum size allowed by GitHub, it can be downloaded from this link and is hosted on my Mega account: https://mega.nz/#!QQhjWTZQ!j9Y59GW481Ch_6l_uSD7nqORxKsxd_icEiAILGJhujE
+I suggest to download the dynamic report, even if it changes only in one interactive plot.
 
 Additional R code, not present in the Rmd file that originated the report is loaded.
 
